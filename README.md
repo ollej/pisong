@@ -8,6 +8,7 @@ Requirements
 
  * Speakerphat
  * Envirophat
+ * mpg321
 
 Install
 -------
@@ -15,8 +16,7 @@ Install
 Run the following command:
 
 ```
-virtualenv -p python3 .venv
-source .venv/bin/activate
+apt-get install mpg321
 pip install -r requirements.txt
 ```
 
