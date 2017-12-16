@@ -1,7 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import time
 import subprocess
+from os import getenv
+from glob import glob
+from random import choice
 
 from envirophat import motion, leds
 import speakerphat
@@ -13,19 +16,16 @@ Press Ctrl+C to exit.
 """)
 
 class PiSong:
-    THRESHOLD = 0.05
-    SLEEP = 0.001
-
     def __init__(self):
         self.readings = []
         self.last_z = 0
+        self.motion_threshold = float(getenv('MOTION_THRESHOLD', 0.1))
+        print("threshold: {}".format(self.motion_threshold))
+        self.motion_sleep = float(getenv('MOTION_SLEEP', 0.01))
+        print("sleep: {}".format(self.motion_sleep))
 
-    def play(self):
-        print("Motion Detected!!!")
-        leds.on()
-
-    def play(self):
-        self.call(['/usr/bin/mpg321', self.song()])
+    def play(self, song):
+        self.call(['/usr/bin/mpg321', song])
 
     def song(self):
         return choice(self.songs())
@@ -42,20 +42,32 @@ class PiSong:
     def call(self, cmd):
         subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    def detect_motion(self):
+    def read_z(self):
         self.readings.append(motion.accelerometer().z)
         self.readings = self.readings[-4:]
-        z = sum(self.readings) / len(self.readings)
+        return sum(self.readings) / len(self.readings)
+
+    def sleep(self):
+        time.sleep(self.motion_sleep)
+
+    def detect_motion(self):
+        z = self.read_z()
         z_delta = abs(z - self.last_z)
-        if self.last_z > 0 and z_delta > self.THRESHOLD:
-            print("Motion detected: [last_z:{}] [z:{}] [z_delta:{}]".format(self.last_z, z, z_delta))
-            self.play()
-            print("Done playing")
-            leds.off()
+        if self.last_z > 0 and z_delta > self.motion_threshold:
+            self.on_motion(z, z_delta)
+            z = 0
         self.last_z = z
-        time.sleep(self.SLEEP)
+        self.sleep()
+
+    def on_motion(self, z, z_delta):
+        print("Motion detected: [last_z:{}] [z:{}] [z_delta:{}]".format(self.last_z, z, z_delta))
+        leds.on()
+        self.play(self.song())
+        print("Done playing")
+        leds.off()
 
     def run(self):
+        self.sleep()
         while True:
             self.detect_motion()
 
